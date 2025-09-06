@@ -950,37 +950,81 @@ const Appointments = () => {
 };
 
 const DietPlans = () => {
-  const [selectedFoods, setSelectedFoods] = useState([]);
-  const [showResults, setShowResults] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState("");
+  const [activeDay, setActiveDay] = useState("monday");
+  const [activeMeal, setActiveMeal] = useState("breakfast");
+  const [showFoodSelection, setShowFoodSelection] = useState(false);
+  
+  // Weekly meal plan structure
+  const [weeklyPlan, setWeeklyPlan] = useState({
+    monday: { breakfast: [], lunch: [], snack: [], dinner: [] },
+    tuesday: { breakfast: [], lunch: [], snack: [], dinner: [] },
+    wednesday: { breakfast: [], lunch: [], snack: [], dinner: [] },
+    thursday: { breakfast: [], lunch: [], snack: [], dinner: [] },
+    friday: { breakfast: [], lunch: [], snack: [], dinner: [] },
+    saturday: { breakfast: [], lunch: [], snack: [], dinner: [] },
+    sunday: { breakfast: [], lunch: [], snack: [], dinner: [] }
+  });
 
-  const calculateMacros = () => {
-    return selectedFoods.reduce(
-      (acc, food) => ({
-        carbs: acc.carbs + food.carbs,
-        protein: acc.protein + food.protein,
-        fats: acc.fats + food.fats,
-      }),
-      { carbs: 0, protein: 0, fats: 0 }
-    );
+  const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  const meals = ['breakfast', 'lunch', 'snack', 'dinner'];
+  
+  const mealIcons = {
+    breakfast: '🌅',
+    lunch: '☀️',
+    snack: '🍎',
+    dinner: '🌙'
   };
 
-  const toggleFood = (food) => {
-    setSelectedFoods((prev) =>
-      prev.find((f) => f.name === food.name)
-        ? prev.filter((f) => f.name !== food.name)
-        : [...prev, food]
-    );
+  const calculateDayMacros = (day) => {
+    let totalMacros = { carbs: 0, protein: 0, fats: 0 };
+    meals.forEach(meal => {
+      weeklyPlan[day][meal].forEach(food => {
+        totalMacros.carbs += food.carbs;
+        totalMacros.protein += food.protein;
+        totalMacros.fats += food.fats;
+      });
+    });
+    return totalMacros;
   };
 
-  const generatePlan = () => {
-    if (selectedFoods.length > 0) {
-      setShowResults(true);
-    }
+  const toggleFoodInMeal = (food) => {
+    setWeeklyPlan(prev => ({
+      ...prev,
+      [activeDay]: {
+        ...prev[activeDay],
+        [activeMeal]: prev[activeDay][activeMeal].find(f => f.name === food.name)
+          ? prev[activeDay][activeMeal].filter(f => f.name !== food.name)
+          : [...prev[activeDay][activeMeal], food]
+      }
+    }));
   };
 
-  const macros = calculateMacros();
-  const total = macros.carbs + macros.protein + macros.fats;
+  const openFoodSelection = (day, meal) => {
+    setActiveDay(day);
+    setActiveMeal(meal);
+    setShowFoodSelection(true);
+  };
+
+  const getMealFoods = (day, meal) => {
+    return weeklyPlan[day][meal];
+  };
+
+  const clearMeal = (day, meal) => {
+    setWeeklyPlan(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        [meal]: []
+      }
+    }));
+  };
+
+  const exportWeeklyPlan = () => {
+    // This would export the plan as PDF or JSON
+    console.log('Weekly Plan:', weeklyPlan);
+    alert('Weekly plan exported! (Check console for data)');
+  };
 
   return (
     <motion.div
@@ -989,198 +1033,230 @@ const DietPlans = () => {
       transition={{ duration: 0.5 }}
       className="p-6 space-y-6"
     >
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Diet Plans
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          Create personalized Ayurvedic diet plans
-        </p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Weekly Diet Planner
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Create personalized Ayurvedic meal plans for the week
+          </p>
+        </div>
+        <Button onClick={exportWeeklyPlan}>
+          <Download className="w-4 h-4 mr-2" />
+          Export Plan
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Create Diet Plan
-          </h3>
+      {/* Patient Selection */}
+      <Card className="p-6">
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Select Patient
+          </label>
+          <select
+            value={selectedPatient}
+            onChange={(e) => setSelectedPatient(e.target.value)}
+            className="w-full max-w-md px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white"
+          >
+            <option value="">Choose a patient...</option>
+            {dummyData.patients.map((patient) => (
+              <option key={patient.id} value={patient.id}>
+                {patient.name} ({patient.dosha})
+              </option>
+            ))}
+          </select>
+        </div>
+      </Card>
 
-          <div className="space-y-4">
-            <select
-              value={selectedPatient}
-              onChange={(e) => setSelectedPatient(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="">Select Patient</option>
-              {dummyData.patients.map((patient) => (
-                <option key={patient.id} value={patient.id}>
-                  {patient.name}
-                </option>
-              ))}
-            </select>
+      {/* Weekly Calendar Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        {days.map((day) => {
+          const dayMacros = calculateDayMacros(day);
+          const totalDayMacros = dayMacros.carbs + dayMacros.protein + dayMacros.fats;
 
-            <div>
-              <h4 className="font-medium text-gray-900 dark:text-white mb-3">
-                Select Foods
-              </h4>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {dummyData.foods.map((food, index) => (
-                  <div
-                    key={index}
-                    className={`p-3 border rounded-xl cursor-pointer transition-all ${
-                      selectedFoods.find((f) => f.name === food.name)
-                        ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20"
-                        : "border-gray-200 dark:border-gray-700 hover:border-emerald-300"
-                    }`}
-                    onClick={() => toggleFood(food)}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          {food.name}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Rasa: {food.rasa}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {food.dosha}
-                        </p>
-                      </div>
-                      <div className="text-right text-xs text-gray-500 dark:text-gray-400">
-                        <p>C: {food.carbs}g</p>
-                        <p>P: {food.protein}g</p>
-                        <p>F: {food.fats}g</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <Button
-              onClick={generatePlan}
-              disabled={selectedFoods.length === 0}
-              className="w-full"
-            >
-              Generate Diet Plan
-            </Button>
-          </div>
-        </Card>
-
-        <AnimatePresence>
-          {showResults && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  Diet Plan Results
+          return (
+            <Card key={day} className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
+                  {day}
                 </h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-medium text-gray-900 dark:text-white mb-2">
-                      Selected Foods
-                    </h4>
-                    <div className="space-y-1">
-                      {selectedFoods.map((food, index) => (
-                        <Badge
-                          key={index}
-                          variant="default"
-                          className="mr-2 mb-1"
-                        >
-                          {food.name}
-                        </Badge>
-                      ))}
-                    </div>
+                {totalDayMacros > 0 && (
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    {totalDayMacros.toFixed(0)}g total
                   </div>
+                )}
+              </div>
 
-                  <div>
-                    <h4 className="font-medium text-gray-900 dark:text-white mb-3">
-                      Macronutrient Breakdown
-                    </h4>
-                    <div className="space-y-3">
-                      {total > 0 && (
-                        <>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">
-                              Carbohydrates
-                            </span>
-                            <span className="font-medium">
-                              {macros.carbs.toFixed(1)}g (
-                              {((macros.carbs / total) * 100).toFixed(0)}%)
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                            <div
-                              className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
-                              style={{
-                                width: `${(macros.carbs / total) * 100}%`,
-                              }}
-                            ></div>
-                          </div>
+              <div className="space-y-3">
+                {meals.map((meal) => {
+                  const mealFoods = getMealFoods(day, meal);
+                  const mealMacros = mealFoods.reduce(
+                    (acc, food) => ({
+                      carbs: acc.carbs + food.carbs,
+                      protein: acc.protein + food.protein,
+                      fats: acc.fats + food.fats,
+                    }),
+                    { carbs: 0, protein: 0, fats: 0 }
+                  );
 
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">
-                              Protein
-                            </span>
-                            <span className="font-medium">
-                              {macros.protein.toFixed(1)}g (
-                              {((macros.protein / total) * 100).toFixed(0)}%)
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                            <div
-                              className="bg-yellow-500 h-2 rounded-full transition-all duration-500"
-                              style={{
-                                width: `${(macros.protein / total) * 100}%`,
-                              }}
-                            ></div>
-                          </div>
+                  return (
+                    <div
+                      key={meal}
+                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:border-emerald-300 transition-colors"
+                    >
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{mealIcons[meal]}</span>
+                          <span className="font-medium text-gray-900 dark:text-white capitalize">
+                            {meal}
+                          </span>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openFoodSelection(day, meal)}
+                          >
+                            <Plus className="w-3 h-3" />
+                          </Button>
+                          {mealFoods.length > 0 && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => clearMeal(day, meal)}
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
 
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">
-                              Fats
-                            </span>
-                            <span className="font-medium">
-                              {macros.fats.toFixed(1)}g (
-                              {((macros.fats / total) * 100).toFixed(0)}%)
-                            </span>
+                      {mealFoods.length > 0 ? (
+                        <div className="space-y-1">
+                          {mealFoods.map((food, index) => (
+                            <Badge
+                              key={index}
+                              variant="default"
+                              className="mr-1 mb-1 text-xs"
+                            >
+                              {food.name}
+                            </Badge>
+                          ))}
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            C: {mealMacros.carbs.toFixed(1)}g | 
+                            P: {mealMacros.protein.toFixed(1)}g | 
+                            F: {mealMacros.fats.toFixed(1)}g
                           </div>
-                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                            <div
-                              className="bg-orange-500 h-2 rounded-full transition-all duration-500"
-                              style={{
-                                width: `${(macros.fats / total) * 100}%`,
-                              }}
-                            ></div>
-                          </div>
-                        </>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-400 italic">
+                          Click + to add foods
+                        </div>
                       )}
                     </div>
-                  </div>
+                  );
+                })}
+              </div>
 
-                  <div className="flex gap-3 pt-4">
-                    <Button size="sm" className="flex-1">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export
-                    </Button>
-                    <Button variant="secondary" size="sm" className="flex-1">
-                      Save Plan
-                    </Button>
+              {/* Daily Macros Summary */}
+              {totalDayMacros > 0 && (
+                <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    <div className="flex justify-between">
+                      <span>Carbs: {dayMacros.carbs.toFixed(1)}g</span>
+                      <span>Protein: {dayMacros.protein.toFixed(1)}g</span>
+                      <span>Fats: {dayMacros.fats.toFixed(1)}g</span>
+                    </div>
                   </div>
                 </div>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              )}
+            </Card>
+          );
+        })}
       </div>
+
+      {/* Food Selection Modal */}
+      <Modal
+        isOpen={showFoodSelection}
+        onClose={() => setShowFoodSelection(false)}
+        title={`Select foods for ${activeDay} ${activeMeal}`}
+      >
+        <div className="space-y-3 max-h-96 overflow-y-auto">
+          {dummyData.foods.map((food, index) => {
+            const isSelected = weeklyPlan[activeDay][activeMeal].find(f => f.name === food.name);
+            
+            return (
+              <div
+                key={index}
+                className={`p-3 border rounded-xl cursor-pointer transition-all ${
+                  isSelected
+                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20"
+                    : "border-gray-200 dark:border-gray-700 hover:border-emerald-300"
+                }`}
+                onClick={() => toggleFoodInMeal(food)}
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {food.name}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Rasa: {food.rasa}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {food.dosha}
+                    </p>
+                  </div>
+                  <div className="text-right text-xs text-gray-500 dark:text-gray-400">
+                    <p>C: {food.carbs}g</p>
+                    <p>P: {food.protein}g</p>
+                    <p>F: {food.fats}g</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex gap-3 pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
+          <Button 
+            onClick={() => setShowFoodSelection(false)}
+            className="flex-1"
+          >
+            Done
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Weekly Summary */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          Weekly Nutrition Summary
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {days.map((day) => {
+            const dayMacros = calculateDayMacros(day);
+            const total = dayMacros.carbs + dayMacros.protein + dayMacros.fats;
+            
+            return (
+              <div key={day} className="text-center">
+                <div className="text-sm font-medium text-gray-900 dark:text-white capitalize">
+                  {day.substring(0, 3)}
+                </div>
+                <div className="text-lg font-bold text-emerald-600">
+                  {total.toFixed(0)}g
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  C:{dayMacros.carbs.toFixed(0)} P:{dayMacros.protein.toFixed(0)} F:{dayMacros.fats.toFixed(0)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
     </motion.div>
   );
 };
-
 const Reports = () => {
   const [selectedMetric, setSelectedMetric] = useState("weight");
 
@@ -1491,3 +1567,4 @@ const AyurvedaPracticeApp = () => {
 };
 
 export default AyurvedaPracticeApp;
+
